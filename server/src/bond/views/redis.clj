@@ -109,7 +109,7 @@
 
 (defpage "/" []
     (let [x             (Integer/parseInt (redis/get db "hits"))
-          last-month    (map date-to-string (get-last-month (now)))
+          last-month    (map date-to-string (get-last-month (plus (now) (days 2))))
           sorted-hits   (sort-hits (get-hit-list x))] 
 
         (common/layout

@@ -46,7 +46,7 @@
 (defn get-hit-list [num] 
   "Get all hits from Redis up to `num`."
     (loop [count num result '()]
-        (if (= count 0)
+        (if (zero? count)
             result
             (recur
                 (dec count)
@@ -77,33 +77,18 @@
   ;; Create a list of maps:
   ;; ({:added 20120526 :count 2})
 
-  (loop [arr last-month-items
-         result '() ]
-        (if (= 0 (count arr))
-          result
-          (recur 
-                (rest arr)
-                (cons 
-                    (if (= -1 (.indexOf (keys user-items) (first arr)))
-                      {:added (first arr) :count 0} 
-                      {:added (first arr) :count (count (get user-items (first arr)))} 
-                     ) 
-                    result)))))
+  (map (fn [m]
+        {:added m :count (count (get user-items m))})
+       (reverse last-month-items)))
 
 (defn get-all-data [sorted-hits last-month]
   "Prepare data for serialization"
-  (let [users (keys sorted-hits)]
-    (loop [arr users result (quote {})]
-          (if (= 0 (count arr))
-            result
-            (recur
-              (rest arr)  
-              (merge
-                result 
-                {
-                    (keyword (first arr))
-                    (make-user-timeline (group-by :added (get sorted-hits (first arr))) last-month)
-                }))))))
+    (letfn [(make-timeline [uid]
+                (make-user-timeline (group-by :added (get sorted-hits uid))
+                                    last-month))]
+        (into {} (map (juxt keyword make-timeline)
+                    (keys sorted-hits)))))
+
 
 ;; Views ---------------------------------------------------------------------
 

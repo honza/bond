@@ -25,39 +25,39 @@
 ;; learning the language and the idioms.
 
 (ns bond.views.redis
-  (:require [bond.views.common :as common]
-            [clj-redis.client :as redis])
-  (:use [noir.core :only [defpage]]
-        [cheshire.core]
-        [clojure.set]
-        [clj-time.core :only [now minus plus days date-time year month day]]
-        [hiccup.core :only [html]]))
+    (:require [bond.views.common :as common]
+     [clj-redis.client :as redis])
+    (:use [noir.core :only [defpage]]
+     [cheshire.core]
+     [clojure.set]
+     [clj-time.core :only [now minus plus days date-time year month day]]
+     [hiccup.core :only [html]]))
 
 ;; ---------------------------------------------------------------------------
 
 (def db (redis/init {:url (load-string (slurp "bond.config"))}))
 
 (defn hgetall [key] 
-    "Retrieve a Redis hash"
+  "Retrieve a Redis hash"
   (into {} 
         (for [[k v] (redis/hgetall db key)]
-        [(keyword k) v])))
+             [(keyword k) v])))
 
 (defn get-hit-list [num] 
   "Get all hits from Redis up to `num`."
-    (loop [count num result '()]
+  (loop [count num result '()]
         (if (zero? count)
-            result
-            (recur
-                (dec count)
-                (cons (hgetall (str "hit:" (Integer/toString count))) result)))))
+          result
+          (recur
+            (dec count)
+            (cons (hgetall (str "hit:" (Integer/toString count))) result)))))
 
 (defn date-to-string [d]
   "Convert a clj-time datetime object to string."
   (str
-        (year d)
-        (if (< (month d) 10) (str "0" (month d)) (month d))
-        (if (< (day d) 10) (str "0" (day d)) (day d))
+    (year d)
+    (if (< (month d) 10) (str "0" (month d)) (month d))
+    (if (< (day d) 10) (str "0" (day d)) (day d))
     ))
 
 (defn get-last-month [now-now]
@@ -78,26 +78,26 @@
   ;; ({:added 20120526 :count 2})
 
   (map (fn [m]
-        {:added m :count (count (get user-items m))})
+           {:added m :count (count (get user-items m))})
        (reverse last-month-items)))
 
 (defn get-all-data [sorted-hits last-month]
   "Prepare data for serialization"
-    (letfn [(make-timeline [uid]
-                (make-user-timeline (group-by :added (get sorted-hits uid))
-                                    last-month))]
-        (into {} (map (juxt keyword make-timeline)
-                    (keys sorted-hits)))))
+  (letfn [(make-timeline [uid]
+                         (make-user-timeline (group-by :added (get sorted-hits uid))
+                                             last-month))]
+         (into {} (map (juxt keyword make-timeline)
+                       (keys sorted-hits)))))
 
 
 ;; Views ---------------------------------------------------------------------
 
 (defpage "/" []
-    (let [x             (Integer/parseInt (redis/get db "hits"))
-          last-month    (map date-to-string (get-last-month (plus (now) (days 2))))
-          sorted-hits   (sort-hits (get-hit-list x))] 
+         (let [x             (Integer/parseInt (redis/get db "hits"))
+               last-month    (map date-to-string (get-last-month (plus (now) (days 2))))
+               sorted-hits   (sort-hits (get-hit-list x))]
 
-        (common/layout
-            (common/json 
-                (generate-string
-                    (get-all-data sorted-hits last-month))))))
+           (common/layout
+             (common/json
+               (generate-string
+                 (get-all-data sorted-hits last-month))))))

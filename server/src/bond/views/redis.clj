@@ -45,12 +45,7 @@
 
 (defn get-hit-list [num] 
   "Get all hits from Redis up to `num`."
-  (loop [count num result '()]
-        (if (zero? count)
-          result
-          (recur
-            (dec count)
-            (cons (hgetall (str "hit:" (Integer/toString count))) result)))))
+  (map (fn [x] (hgetall (str "hit:" (Integer/toString x)))) (range 1 num)))
 
 (defn date-to-string [d]
   "Convert a clj-time datetime object to string."

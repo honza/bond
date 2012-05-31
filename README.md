@@ -9,6 +9,8 @@ Bond is made up of two parts: Django middleware and a Clojure server that
 parses all the collected data and shows you a nice graph. Bond uses Redis to
 store data and Rickshaw to display the graphs.
 
+![screenshot](https://img.skitch.com/20120531-1cjcr5w9meu62515nmmmwjgsah.jpg)
+
 Use case
 --------
 

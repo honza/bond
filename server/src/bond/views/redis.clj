@@ -26,7 +26,7 @@
 
 (ns bond.views.redis
     (:require [bond.views.common :as common]
-     [clj-redis.client :as redis])
+     [carmine (core :as r)])
     (:use [noir.core :only [defpage]]
      [cheshire.core]
      [clojure.set]
@@ -34,26 +34,36 @@
      [hiccup.core :only [html]]))
 
 ;; ---------------------------------------------------------------------------
+(def pool (r/make-conn-pool :test-while-idle? true))
+(def spec-server1 (r/make-conn-spec
+                    :host (load-string (slurp "bond.config"))
+                    :db 0
+                    :post 6379))
 
-(def db (redis/init {:url (load-string (slurp "bond.config"))}))
-
-(defn hgetall [key] 
-  "Retrieve a Redis hash"
-  (into {} 
-        (for [[k v] (redis/hgetall db key)]
-             [(keyword k) v])))
+(defmacro redis
+  "Basically like (partial with-conn pool spec-server1)."
+  [& body] `(r/with-conn pool spec-server1 ~@body))
 
 (defn get-hit-list [num] 
   "Get all hits from Redis up to `num`."
-  (map (fn [x] (hgetall (str "hit:" (Integer/toString x)))) (range 1 num)))
+  (redis
+    (doall
+      (map
+        (fn [x] (r/hgetall (str "hit:" (Integer/toString x))))
+        (range 1 num)))))
+
+(defn mapify [item]
+  (into {}
+        (for [[k v]
+              (apply hash-map item)]
+             [(keyword k) v])) )
 
 (defn date-to-string [d]
   "Convert a clj-time datetime object to string."
   (str
     (year d)
     (if (< (month d) 10) (str "0" (month d)) (month d))
-    (if (< (day d) 10) (str "0" (day d)) (day d))
-    ))
+    (if (< (day d) 10) (str "0" (day d)) (day d))))
 
 (defn get-last-month [now-now]
   "Give me a list of date-time objects representing the last 30 days"
@@ -88,9 +98,9 @@
 ;; Views ---------------------------------------------------------------------
 
 (defpage "/" []
-         (let [x             (Integer/parseInt (redis/get db "hits"))
+         (let [x             (Integer/parseInt (redis (r/get "hits")))
                last-month    (map date-to-string (get-last-month (plus (now) (days 2))))
-               sorted-hits   (sort-hits (get-hit-list x))]
+               sorted-hits   (sort-hits (map mapify (get-hit-list x)) )]
 
            (common/layout
              (common/json
